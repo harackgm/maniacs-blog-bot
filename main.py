@@ -33,16 +33,15 @@ def save_db(data):
 def send_line_carousel(posts):
     """
     【デザイン変更用ブロック】
-    LINE Flex Message (Carousel) を使用して、長いURLを隠しボタン化します。
-    複数の記事がある場合は横スワイプ(カルーセル)で1通にまとめて送信します。
+    画像付きのLINE Flex Message (Carousel) を作成します。
     """
     if not LINE_TOKEN:
         print("[スキップ] LINE_TOKEN未設定のため擬似通知（カルーセル）")
         return
 
-    # カルーセルの中身（バブル）を作成
     bubbles = []
     for post in posts:
+        # 基本のテキストとボタンの構成
         bubble = {
             "type": "bubble",
             "body": {
@@ -60,8 +59,8 @@ def send_line_carousel(posts):
                         "type": "text",
                         "text": post['title'],
                         "weight": "bold",
-                        "size": "md",       # 標準の文字サイズ
-                        "wrap": True,       # 長いタイトルを改行して全て表示
+                        "size": "md",
+                        "wrap": True,
                         "margin": "md"
                     }
                 ]
@@ -72,7 +71,7 @@ def send_line_carousel(posts):
                 "contents": [
                     {
                         "type": "button",
-                        "style": "primary", # 色付きの目立つボタン
+                        "style": "primary",
                         "color": "#1DB446",
                         "action": {
                             "type": "uri",
@@ -83,9 +82,19 @@ def send_line_carousel(posts):
                 ]
             }
         }
+        
+        # もし画像URLが取得できていれば、カードの上部（hero）に画像を追加
+        if post.get('image_url'):
+            bubble["hero"] = {
+                "type": "image",
+                "url": post['image_url'],
+                "size": "full",
+                "aspectRatio": "20:13",
+                "aspectMode": "cover"
+            }
+            
         bubbles.append(bubble)
 
-    # LINE APIへ送るデータ構造
     url = "https://api.line.me/v2/bot/message/broadcast"
     headers = {
         "Authorization": f"Bearer {LINE_TOKEN}",
@@ -95,7 +104,7 @@ def send_line_carousel(posts):
         "messages": [
             {
                 "type": "flex",
-                "altText": "トラウト入荷の最新記事があります", # トーク一覧画面に表示されるテキスト
+                "altText": "トラウト入荷の最新記事があります", 
                 "contents": {
                     "type": "carousel",
                     "contents": bubbles
@@ -112,7 +121,7 @@ def send_line_carousel(posts):
         print(f"LINE通知エラー: {e}")
 
 def get_latest_posts():
-    """RSSフィードから最新記事を取得する"""
+    """RSSフィードから最新記事と画像をサーバー低負荷で取得する"""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
     }
@@ -127,8 +136,24 @@ def get_latest_posts():
         for item in items:
             title = item.title.text.strip() if item.title else "No Title"
             link = item.link.text.strip() if item.link else ""
+            
+            # 記事データの中から画像を抽出（追加の通信をせずにRSS内から探す）
+            image_url = ""
+            # <content:encoded> または <description> タグを取得
+            content_tag = item.find("content:encoded")
+            if not content_tag:
+                content_tag = item.description
+                
+            if content_tag and content_tag.text:
+                # 記事のテキストデータの中からHTMLの<img>タグを探す
+                content_soup = BeautifulSoup(content_tag.text, "html.parser")
+                img_tag = content_soup.find("img")
+                if img_tag and img_tag.get("src"):
+                    # LINEの仕様上 https:// 必須のため変換
+                    image_url = img_tag.get("src").replace("http://", "https://")
+
             if link:
-                posts.append({"title": title, "url": link})
+                posts.append({"title": title, "url": link, "image_url": image_url})
         return posts
     except Exception as e:
         print(f"取得エラー: {e}")
@@ -149,7 +174,7 @@ def main():
         
     # --- テストモードの処理 ---
     if TEST_MODE:
-        test_post = posts[0] # 最新記事1件でカルーセルの見た目をテスト
+        test_post = posts[0] 
         send_line_carousel([test_post])
         print("テスト通知を送信しました。LINEを確認してください。")
         print("--- 巡回完了 ---")
