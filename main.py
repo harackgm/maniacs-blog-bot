@@ -50,9 +50,9 @@ def send_line_carousel(posts):
                     {
                         "type": "image",
                         "url": LOGO_URL,
-                        "size": "sm",
+                        "size": "full",    # 【変更】ロゴサイズを最大(full)に拡大
                         "aspectMode": "fit",
-                        "align": "start"
+                        "align": "center"  # 【変更】バランス調整のため中央寄せ
                     }
                 ],
                 "paddingAll": "10px",
