@@ -50,12 +50,13 @@ def send_line_carousel(posts):
                     {
                         "type": "image",
                         "url": LOGO_URL,
-                        "size": "full",    # 【変更】ロゴサイズを最大(full)に拡大
+                        "size": "full",
+                        "aspectRatio": "4:1", # 【変更】枠を横長に指定して上下余白をカット
                         "aspectMode": "fit",
-                        "align": "center"  # 【変更】バランス調整のため中央寄せ
+                        "align": "center"
                     }
                 ],
-                "paddingAll": "10px",
+                "paddingAll": "0px", # 【変更】ボックス自体の内側余白をゼロに
                 "backgroundColor": "#ffffff"
             },
             "hero": {
