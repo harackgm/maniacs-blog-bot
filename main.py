@@ -16,8 +16,8 @@ LINE_TOKEN = os.environ.get("LINE_TOKEN", "")
 
 # デザイン設定
 THEME_COLOR = "#555555" # シックなダークグレー
-# GitHubにアップロードされた小文字の「logo.png」のURLを指定
-LOGO_URL = "https://raw.githubusercontent.com/harackgm/maniacs-blog-bot/main/logo.png"
+# 取得いただいた公開用URLを指定
+LOGO_URL = "https://github.com/user-attachments/assets/ff604851-38f5-4ced-94aa-93a07340c96c"
 # ==================
 
 def load_db():
