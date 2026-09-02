@@ -1,14 +1,11 @@
 name: Trout Blog Monitor
 
 on:
-  schedule:
-    # 日本時間(JST)の 9:00, 12:00, 15:00, 18:00, 21:00 に巡回する設定
-    # GitHubのCronはUTC（世界標準時）のため、日本時間からマイナス9時間して設定します。
-    - cron: '0 0,3,6,9,12 * * *'
-  workflow_dispatch: # ブラウザから手動でテスト実行するためのボタンを表示
+  # GitHub標準のCron(schedule)を削除し、手動および外部APIからの実行のみを許可
+  workflow_dispatch: 
 
 permissions:
-  contents: write # DBファイル(json)の更新をGitHubに保存(コミット)するために必須
+  contents: write 
 
 jobs:
   build:
