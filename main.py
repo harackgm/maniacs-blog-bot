@@ -15,16 +15,6 @@ MAX_LIMIT = 5  # 安全装置：この件数以上ならLINE通知を遮断しDB
 LINE_TOKEN = os.environ.get("LINE_TOKEN", "") 
 # ==================
 
-def format_message(post):
-    """
-    【デザイン変更用ブロック】
-    LINEに通知するメッセージの見た目をここで自由に変更できます。
-    post['title'] には記事のタイトル、post['url'] にはURLが入ります。
-    \n は改行を意味します。
-    """
-    msg = f"🐟【新着入荷:トラウト】🐟\n\n📝 {post['title']}\n\n🔗 リンクはこちら:\n{post['url']}"
-    return msg
-
 def load_db():
     """過去の通知済みURLリストを読み込む"""
     if os.path.exists(DB_FILE):
@@ -40,12 +30,62 @@ def save_db(data):
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(data[-100:], f, ensure_ascii=False, indent=2)
 
-def send_line_message(message):
-    """LINE Messaging API (Broadcast) へメッセージを送信する"""
+def send_line_carousel(posts):
+    """
+    【デザイン変更用ブロック】
+    LINE Flex Message (Carousel) を使用して、長いURLを隠しボタン化します。
+    複数の記事がある場合は横スワイプ(カルーセル)で1通にまとめて送信します。
+    """
     if not LINE_TOKEN:
-        print(f"[スキップ] LINE_TOKEN未設定のため擬似通知:\n{message}")
+        print("[スキップ] LINE_TOKEN未設定のため擬似通知（カルーセル）")
         return
-    
+
+    # カルーセルの中身（バブル）を作成
+    bubbles = []
+    for post in posts:
+        bubble = {
+            "type": "bubble",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "🐟新着入荷: トラウト",
+                        "weight": "bold",
+                        "color": "#1DB446",
+                        "size": "sm"
+                    },
+                    {
+                        "type": "text",
+                        "text": post['title'],
+                        "weight": "bold",
+                        "size": "md",       # 標準の文字サイズ
+                        "wrap": True,       # 長いタイトルを改行して全て表示
+                        "margin": "md"
+                    }
+                ]
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "button",
+                        "style": "primary", # 色付きの目立つボタン
+                        "color": "#1DB446",
+                        "action": {
+                            "type": "uri",
+                            "label": "記事を読む",
+                            "uri": post['url']
+                        }
+                    }
+                ]
+            }
+        }
+        bubbles.append(bubble)
+
+    # LINE APIへ送るデータ構造
     url = "https://api.line.me/v2/bot/message/broadcast"
     headers = {
         "Authorization": f"Bearer {LINE_TOKEN}",
@@ -54,11 +94,16 @@ def send_line_message(message):
     data = {
         "messages": [
             {
-                "type": "text",
-                "text": message
+                "type": "flex",
+                "altText": "トラウト入荷の最新記事があります", # トーク一覧画面に表示されるテキスト
+                "contents": {
+                    "type": "carousel",
+                    "contents": bubbles
+                }
             }
         ]
     }
+    
     try:
         res = requests.post(url, headers=headers, json=data, timeout=10)
         res.raise_for_status()
@@ -104,9 +149,8 @@ def main():
         
     # --- テストモードの処理 ---
     if TEST_MODE:
-        test_post = posts[0] # 一番最新の記事を1つだけ取り出す
-        msg = format_message(test_post)
-        send_line_message(msg)
+        test_post = posts[0] # 最新記事1件でカルーセルの見た目をテスト
+        send_line_carousel([test_post])
         print("テスト通知を送信しました。LINEを確認してください。")
         print("--- 巡回完了 ---")
         return
@@ -125,9 +169,8 @@ def main():
         print(f"【警告】新着件数が上限({MAX_LIMIT}件)を超過しています。")
         print("無料枠の枯渇を防ぐため、LINE通知をスキップしてDBの既読化のみ行います。")
     else:
-        for post in reversed(new_posts): 
-            msg = format_message(post)
-            send_line_message(msg)
+        # 古い記事から順番に並び替えてカルーセル化
+        send_line_carousel(list(reversed(new_posts)))
     
     for post in new_posts:
         db_urls.append(post["url"])
