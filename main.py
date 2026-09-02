@@ -9,11 +9,15 @@ import sys
 # テスト時は True、本番稼働時は False に変更してください
 TEST_MODE = True  
 
-# 取得先をRSSからHTMLページ本体へ変更
 TARGET_URL = "https://maniacs1091.jp/blog/category/%e5%85%a5%e8%8d%b7%e6%83%85%e5%a0%b1/%e3%83%88%e3%83%a9%e3%82%a6%e3%83%88/"
 DB_FILE = "notified_urls.json"
 MAX_LIMIT = 5  # 安全装置：この件数以上ならLINE通知を遮断しDBのみ更新
 LINE_TOKEN = os.environ.get("LINE_TOKEN", "") 
+
+# デザイン設定
+THEME_COLOR = "#555555" # シックなダークグレー
+# GitHubにアップロードされた小文字の「logo.png」のURLを指定
+LOGO_URL = "https://raw.githubusercontent.com/harackgm/maniacs-blog-bot/main/logo.png"
 # ==================
 
 def load_db():
@@ -39,6 +43,21 @@ def send_line_carousel(posts):
     for post in posts:
         bubble = {
             "type": "bubble",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "image",
+                        "url": LOGO_URL,
+                        "size": "sm",
+                        "aspectMode": "fit",
+                        "align": "start"
+                    }
+                ],
+                "paddingAll": "10px",
+                "backgroundColor": "#ffffff"
+            },
             "hero": {
                 "type": "image",
                 "url": post['image_url'],
@@ -52,9 +71,9 @@ def send_line_carousel(posts):
                 "contents": [
                     {
                         "type": "text",
-                        "text": "🐟新着入荷: トラウト",
+                        "text": "新着入荷: トラウト",
                         "weight": "bold",
-                        "color": "#1DB446",
+                        "color": THEME_COLOR,
                         "size": "sm"
                     },
                     {
@@ -74,7 +93,7 @@ def send_line_carousel(posts):
                     {
                         "type": "button",
                         "style": "primary",
-                        "color": "#1DB446",
+                        "color": THEME_COLOR,
                         "action": {
                             "type": "uri",
                             "label": "記事を読む",
@@ -120,15 +139,11 @@ def get_latest_posts():
         res = requests.get(TARGET_URL, headers=headers, timeout=10)
         res.raise_for_status()
         
-        # HTMLとしてパース
         soup = BeautifulSoup(res.content, "html.parser")
-        
-        # 記事ブロック（<article>）をすべて取得
         articles = soup.find_all("article")
         
         posts = []
         for article in articles:
-            # タイトルとURLの取得
             title_tag = article.find("h2", class_="entry-title")
             if not title_tag or not title_tag.find("a"):
                 continue
@@ -136,13 +151,11 @@ def get_latest_posts():
             title = title_tag.text.strip()
             link = title_tag.find("a").get("href")
             
-            # 画像の取得（wp-post-image クラスを持つimgタグを探す）
             image_url = ""
             img_tag = article.find("img", class_="wp-post-image")
             if img_tag and img_tag.get("src"):
                 image_url = img_tag.get("src").replace("http://", "https://")
             
-            # 画像が見つからない場合のダミー画像
             if not image_url:
                 image_url = "https://placehold.jp/20/cccccc/ffffff/400x260.png?text=No%20Image"
 
@@ -167,7 +180,6 @@ def main():
         print("記事が見つかりませんでした。終了します。")
         sys.exit(1)
         
-    # --- テストモードの処理 ---
     if TEST_MODE:
         test_post = posts[0] 
         send_line_carousel([test_post])
@@ -175,7 +187,6 @@ def main():
         print("--- 巡回完了 ---")
         return
         
-    # --- 本番モードの処理 ---
     new_posts = [p for p in posts if p["url"] not in db_urls]
     
     if not new_posts:
