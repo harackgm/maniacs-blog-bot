@@ -6,11 +6,24 @@ import time
 import sys
 
 # ====== 設定 ======
+# テスト時は True、本番稼働時は False に変更してください
+TEST_MODE = True  
+
 TARGET_URL = "https://maniacs1091.jp/blog/category/%e5%85%a5%e8%8d%b7%e6%83%85%e5%a0%b1/%e3%83%88%e3%83%a9%e3%82%a6%e3%83%88/feed/"
 DB_FILE = "notified_urls.json"
 MAX_LIMIT = 5  # 安全装置：この件数以上ならLINE通知を遮断しDBのみ更新
 LINE_TOKEN = os.environ.get("LINE_TOKEN", "") 
 # ==================
+
+def format_message(post):
+    """
+    【デザイン変更用ブロック】
+    LINEに通知するメッセージの見た目をここで自由に変更できます。
+    post['title'] には記事のタイトル、post['url'] にはURLが入ります。
+    \n は改行を意味します。
+    """
+    msg = f"🐟【新着入荷:トラウト】🐟\n\n📝 {post['title']}\n\n🔗 リンクはこちら:\n{post['url']}"
+    return msg
 
 def load_db():
     """過去の通知済みURLリストを読み込む"""
@@ -30,7 +43,7 @@ def save_db(data):
 def send_line_message(message):
     """LINE Messaging API (Broadcast) へメッセージを送信する"""
     if not LINE_TOKEN:
-        print(f"[スキップ] LINE_TOKEN未設定のため擬似通知: {message}")
+        print(f"[スキップ] LINE_TOKEN未設定のため擬似通知:\n{message}")
         return
     
     url = "https://api.line.me/v2/bot/message/broadcast"
@@ -78,13 +91,27 @@ def get_latest_posts():
 
 def main():
     print("--- 巡回開始 ---")
+    
+    if TEST_MODE:
+        print("※ テストモードで実行中（最新1件のみ通知・DB更新なし）")
+        
     db_urls = load_db()
     posts = get_latest_posts()
     
     if not posts:
         print("記事が見つかりませんでした。終了します。")
         sys.exit(1)
-    
+        
+    # --- テストモードの処理 ---
+    if TEST_MODE:
+        test_post = posts[0] # 一番最新の記事を1つだけ取り出す
+        msg = format_message(test_post)
+        send_line_message(msg)
+        print("テスト通知を送信しました。LINEを確認してください。")
+        print("--- 巡回完了 ---")
+        return
+        
+    # --- 本番モードの処理 ---
     new_posts = [p for p in posts if p["url"] not in db_urls]
     
     if not new_posts:
@@ -94,16 +121,14 @@ def main():
 
     print(f"新着記事を {len(new_posts)} 件検知しました。")
     
-    # --- 大量通知ストッパー（安全装置） ---
     if len(new_posts) > MAX_LIMIT:
         print(f"【警告】新着件数が上限({MAX_LIMIT}件)を超過しています。")
-        print("無料枠(月200通)の枯渇を防ぐため、LINE通知をスキップしてDBの既読化のみ行います。")
+        print("無料枠の枯渇を防ぐため、LINE通知をスキップしてDBの既読化のみ行います。")
     else:
         for post in reversed(new_posts): 
-            msg = f"【新着入荷:トラウト】\n{post['title']}\n{post['url']}"
+            msg = format_message(post)
             send_line_message(msg)
     
-    # DB更新
     for post in new_posts:
         db_urls.append(post["url"])
     
