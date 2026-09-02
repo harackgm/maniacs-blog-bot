@@ -6,8 +6,8 @@ import time
 import sys
 
 # ====== 設定 ======
-# テスト時は True、本番稼働時は False に変更してください
-TEST_MODE = True  
+# 本番稼働モード（差分検知による新着通知のみ実行）
+TEST_MODE = False  
 
 TARGET_URL = "https://maniacs1091.jp/blog/category/%e5%85%a5%e8%8d%b7%e6%83%85%e5%a0%b1/%e3%83%88%e3%83%a9%e3%82%a6%e3%83%88/"
 DB_FILE = "notified_urls.json"
@@ -51,12 +51,12 @@ def send_line_carousel(posts):
                         "type": "image",
                         "url": LOGO_URL,
                         "size": "full",
-                        "aspectRatio": "4:1", # 【変更】枠を横長に指定して上下余白をカット
+                        "aspectRatio": "4:1", 
                         "aspectMode": "fit",
                         "align": "center"
                     }
                 ],
-                "paddingAll": "0px", # 【変更】ボックス自体の内側余白をゼロに
+                "paddingAll": "0px", 
                 "backgroundColor": "#ffffff"
             },
             "hero": {
